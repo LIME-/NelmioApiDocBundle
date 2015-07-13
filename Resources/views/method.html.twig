@@ -88,23 +88,21 @@
                     <thead>
                         <tr>
                             <th>Name</th>
-                            <th>Information</th>
+                            <th>Requirements</th>
+                            <th>Default</th>
+                            <th>Description</th>
                         </tr>
                     </thead>
                     <tbody>
                     {% for name, infos in data.filters %}
                         <tr>
-                            <td>{{ name }}</td>
-                            <td>
-                                <table>
-                                {% for key, value in infos %}
-                                    <tr>
-                                        <td>{{ key|title }}</td>
-                                        <td>{{ value|json_encode|replace({'\\\\': '\\'})|trim('"') }}</td>
-                                    </tr>
-                                {% endfor %}
-                                </table>
-                            </td>
+                            <tr>
+
+                                <td>{{ name }}</td>
+                                <td>{{ infos.requirement is defined ? infos.requirement : '' }}</td>
+                                <td>{{ infos.default is defined ? infos.default : '' }}</td>
+                                <td>{{ infos.description is defined ? infos.description : '' }}</td>
+                            </tr>
                         </tr>
                     {% endfor %}
                     </tbody>
