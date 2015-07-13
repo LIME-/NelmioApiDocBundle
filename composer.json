@@ -1,5 +1,5 @@
 {
-    "name": "nelmio/api-doc-bundle",
+    "name": "genhoi/api-doc-bundle",
     "description": "Generates documentation for your REST API from annotations",
     "keywords": ["api", "documentation", "doc", "rest"],
     "type": "symfony-bundle",
@@ -11,7 +11,7 @@
         },
         {
             "name": "Symfony Community",
-            "homepage": "https://github.com/nelmio/NelmioApiDocBundle/contributors"
+            "homepage": "https://github.com/genhoi/NelmioApiDocBundle/contributors"
         }
     ],
     "require": {
@@ -46,9 +46,9 @@
         "jms/serializer": "For making use of serializer information in the doc."
     },
     "autoload": {
-        "psr-0": { "Nelmio\\ApiDocBundle": "" }
+        "psr-0": { "Genhoi\\ApiDocBundle": "" }
     },
-    "target-dir": "Nelmio/ApiDocBundle",
+    "target-dir": "Genhoi/ApiDocBundle",
     "extra": {
         "branch-alias": {
             "dev-master": "2.9.x-dev"
