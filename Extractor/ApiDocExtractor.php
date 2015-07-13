@@ -14,19 +14,15 @@ namespace Nelmio\ApiDocBundle\Extractor;
 use Doctrine\Common\Annotations\Reader;
 use Doctrine\Common\Util\ClassUtils;
 use Nelmio\ApiDocBundle\Annotation\ApiDoc;
-use Nelmio\ApiDocBundle\Annotation\ApiModel;
-use Nelmio\ApiDocBundle\Annotation\ApiModelCollection;
 use Nelmio\ApiDocBundle\DataTypes;
 use Nelmio\ApiDocBundle\Parser\ParserInterface;
 use Nelmio\ApiDocBundle\Parser\PostParserInterface;
 use Nelmio\ApiDocBundle\Util\DocCommentExtractor;
 use Symfony\Bundle\FrameworkBundle\Controller\ControllerNameParser;
-use Symfony\Component\OptionsResolver\Options;
-use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\Routing\Route;
-use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Route;
+use Symfony\Component\Routing\RouterInterface;
 
 class ApiDocExtractor
 {
@@ -72,11 +68,6 @@ class ApiDocExtractor
      */
     protected $annotationsProviders;
 
-    /**
-     * @var OptionsResolver
-     */
-    protected $resolver;
-
     public function __construct(ContainerInterface $container, RouterInterface $router, Reader $reader, DocCommentExtractor $commentExtractor, ControllerNameParser $controllerNameParser, array $handlers, array $annotationsProviders)
     {
         $this->container            = $container;
@@ -86,56 +77,6 @@ class ApiDocExtractor
         $this->controllerNameParser = $controllerNameParser;
         $this->handlers             = $handlers;
         $this->annotationsProviders = $annotationsProviders;
-        $this->resolver         = new OptionsResolver();
-        $this->configureResolver();
-    }
-
-    private function configureResolver()
-    {
-        $this->resolver->setDefaults(array(
-            'dataType' => null,
-            'subType' => null,
-            'actualType' => DataTypes::STRING,
-            'required' => false,
-            'readonly' => false,
-            'description' => null,
-            'default' => null,
-            'sinceVersion' => null,
-            'untilVersion' => null,
-        ));
-
-        $refClass = new \ReflectionClass('Nelmio\\ApiDocBundle\\DataTypes');
-
-        $this->resolver->setAllowedValues(array(
-            'actualType' => array_values($refClass->getConstants()),
-        ));
-
-        $this->resolver->setOptional(array(
-            'children', 'class', 'type', 'format',
-        ));
-
-        $this->resolver->setAllowedTypes(array(
-            'children' => array('array', 'null'),
-        ));
-
-        $generator = array($this, 'generateHumanReadableType');
-
-        $resolver = $this->resolver;
-
-        $this->resolver->setNormalizers(array(
-            'dataType' => function (Options $options, $value) use ($generator) {
-                if (strlen($value) > 0) {
-                    return $value;
-                }
-                return call_user_func($generator, $options['actualType'], $options['subType']);
-            },
-            'description' => function (Options $options, $value) {
-                return (string) $value;
-            },
-            'readonly' => function (Options $options, $value) {
-                return (boolean) $value;
-            }
-        ));
     }
 
     /**
@@ -345,48 +286,28 @@ class ApiDocExtractor
 
         // input (populates 'parameters' for the formatters)
         if (null !== $input = $annotation->getInput()) {
-            if ($input instanceof ApiModel) {
+            $parameters      = array();
+            $normalizedInput = $this->normalizeClassParameter($input);
 
-                if ($input instanceof ApiModelCollection) {
-                    $parameters = array(
-                        $input->getCollectionName() => array(
-                            'actualType' => DataTypes::COLLECTION,
-                            'subType' => $input->getName(),
-                            'children' => $input->getParameters(),
-                        )
-                    );
-                } else {
-                    $parameters = $input->getParameters();
+            $supportedParsers = array();
+            foreach ($this->getParsers($normalizedInput) as $parser) {
+                if ($parser->supports($normalizedInput)) {
+                    $supportedParsers[] = $parser;
+                    $parameters         = $this->mergeParameters($parameters, $parser->parse($normalizedInput));
                 }
-
-                $parameters = $this->resolveParameters($parameters);
-            } else {
-                $parameters      = array();
-                $normalizedInput = $this->normalizeClassParameter($input);
-
-                $supportedParsers = array();
-                foreach ($this->getParsers($normalizedInput) as $parser) {
-                    if ($parser->supports($normalizedInput)) {
-                        $supportedParsers[] = $parser;
-                        $parsed = $parser->parse($normalizedInput);
-                        $parameters = $this->mergeParameters($parameters, $parsed);
-                    }
-                }
-
-                foreach ($supportedParsers as $parser) {
-                    if ($parser instanceof PostParserInterface) {
-                        $postParsed = $parser->postParse($normalizedInput, $parameters);
-                        $parameters = $this->mergeParameters(
-                            $parameters,
-                            $postParsed
-                        );
-                    }
-                }
-
-                $parameters = $this->clearClasses($parameters);
             }
 
-            //$parameters = $this->generateHumanReadableTypes($parameters);
+            foreach ($supportedParsers as $parser) {
+                if ($parser instanceof PostParserInterface) {
+                    $parameters = $this->mergeParameters(
+                        $parameters,
+                        $parser->postParse($normalizedInput, $parameters)
+                    );
+                }
+            }
+
+            $parameters = $this->clearClasses($parameters);
+            $parameters = $this->generateHumanReadableTypes($parameters);
 
             if ('PUT' === $annotation->getMethod()) {
                 // All parameters are optional with PUT (update)
@@ -400,52 +321,27 @@ class ApiDocExtractor
 
         // output (populates 'response' for the formatters)
         if (null !== $output = $annotation->getOutput()) {
+            $response         = array();
+            $supportedParsers = array();
 
-            if ($output instanceof ApiModel) {
+            $normalizedOutput = $this->normalizeClassParameter($output);
 
-                if ($output instanceof ApiModelCollection) {
-                        $response = array(
-                        $output->getCollectionName() => array(
-                            'actualType' => DataTypes::COLLECTION,
-                            'subType' => $output->getName(),
-                            'children' => $output->getParameters(),
-                        )
-                    );
-                    $normalizedOutput = array('class' => $output->getName(), 'collection' => true, 'collectionName' => $output->getCollectionName());
-                    $annotation->setResponseForStatusCode($response, $output->getName(), 200);
-                } else {
-                    $response = $output->getParameters();
-                    $normalizedOutput = array('class' => $output->getName());
+            foreach ($this->getParsers($normalizedOutput) as $parser) {
+                if ($parser->supports($normalizedOutput)) {
+                    $supportedParsers[] = $parser;
+                    $response = $this->mergeParameters($response, $parser->parse($normalizedOutput));
                 }
-
-                $response = $this->resolveParameters($response);
-
-            } else {
-
-                $response         = array();
-                $supportedParsers = array();
-
-                $normalizedOutput = $this->normalizeClassParameter($output);
-
-                foreach ($this->getParsers($normalizedOutput) as $parser) {
-                    if ($parser->supports($normalizedOutput)) {
-                        $supportedParsers[] = $parser;
-                        $parsed   = $parser->parse($normalizedOutput);
-                        $response = $this->mergeParameters($response, $parsed);
-                    }
-                }
-
-                foreach ($supportedParsers as $parser) {
-                    if ($parser instanceof PostParserInterface) {
-                        $postParsed = $parser->postParse($normalizedOutput, $response);
-                        $response = $this->mergeParameters($response, $postParsed);
-                    }
-                }
-
-                $response = $this->clearClasses($response);
             }
 
-            //$response = $this->generateHumanReadableTypes($response);
+            foreach ($supportedParsers as $parser) {
+                if ($parser instanceof PostParserInterface) {
+                    $mp = $parser->postParse($normalizedOutput, $response);
+                    $response = $this->mergeParameters($response, $mp);
+                }
+            }
+
+            $response = $this->clearClasses($response);
+            $response = $this->generateHumanReadableTypes($response);
 
             $annotation->setResponse($response);
             $annotation->setResponseForStatusCode($response, $normalizedOutput, 200);
@@ -469,30 +365,25 @@ class ApiDocExtractor
                 foreach ($this->getParsers($normalizedModel) as $parser) {
                     if ($parser->supports($normalizedModel)) {
                         $supportedParsers[] = $parser;
-                        $parsed     = $parser->parse($normalizedModel);
-                        $parsed = $this->resolveParameters($parsed);
-                        $parameters = $this->mergeParameters($parameters, $parsed);
+                        $parameters = $this->mergeParameters($parameters, $parser->parse($normalizedModel));
                     }
                 }
 
                 foreach ($supportedParsers as $parser) {
                     if ($parser instanceof PostParserInterface) {
-                        $postParsed = $parser->postParse($normalizedModel, $parameters);
-                        $postParsed = $this->resolveParameters($postParsed);
-                        $parameters = $this->mergeParameters($parameters, $postParsed);
+                        $mp = $parser->postParse($normalizedModel, $parameters);
+                        $parameters = $this->mergeParameters($parameters, $mp);
                     }
                 }
 
                 $parameters = $this->clearClasses($parameters);
-                //$parameters = $this->generateHumanReadableTypes($parameters);
+                $parameters = $this->generateHumanReadableTypes($parameters);
 
                 $annotation->setResponseForStatusCode($parameters, $normalizedModel, $code);
 
             }
 
         }
-
-        $annotation->setParameters($this->resolveParameters($annotation->getParameters()));
 
         return $annotation;
     }
@@ -707,25 +598,5 @@ class ApiDocExtractor
         }
 
         return $parsers;
-    }
-
-    /**
-     * Uses the configured OptionsResolver to resolve parameter values.
-     *
-     * @param array $parameters
-     *
-     * @return array
-     */
-    private function resolveParameters(array $parameters)
-    {
-        foreach ($parameters as $name => $params) {
-            $params            = is_array($params) ? $this->resolver->resolve($params) : $params;
-            if (isset($params['children']) && is_array($params['children'])) {
-                $params['children'] = $this->resolveParameters($params['children']);
-            }
-            $parameters[$name] = $params;
-        }
-
-        return $parameters;
     }
 }
