@@ -10,10 +10,7 @@
  */
 
 namespace Nelmio\ApiDocBundle\Tests\Fixtures\Controller;
-
 use Nelmio\ApiDocBundle\Annotation\ApiDoc;
-use Nelmio\ApiDocBundle\Annotation\ApiModel;
-use Nelmio\ApiDocBundle\Annotation\ApiModelCollection;
 
 class ResourceController
 {
@@ -21,12 +18,6 @@ class ResourceController
      * @ApiDoc(
      *      resource=true,
      *      views={ "test", "premium", "default" },
-     *      input=@ApiModel(
-     *          parameters={
-     *              "foo"={"type"="string"}
-     *          },
-     *          name="test"
-     *      ),
      *      resourceDescription="Operations on resource.",
      *      description="List resources.",
      *      output="array<Nelmio\ApiDocBundle\Tests\Fixtures\Model\Test> as tests",
@@ -39,13 +30,7 @@ class ResourceController
     }
 
     /**
-     * @ApiDoc(description="Retrieve a resource by ID.", output=@ApiModelCollection(
-     *      collectionName="bar",
-     *      parameters={
-     *          "price"={"type"="integer", "default"=10, "required"=false}
-     *      },
-     *      name="ResourceCollection"
-     * ))
+     * @ApiDoc(description="Retrieve a resource by ID.")
      */
     public function getResourceAction()
     {
@@ -106,4 +91,3 @@ class ResourceController
 
     }
 }
-

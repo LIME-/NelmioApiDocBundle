@@ -1166,13 +1166,6 @@ _List resources._
 
   - Requirement: json|xml|html
 
-#### Parameters ####
-
-foo:
-
-  * type: string
-  * required: false
-
 #### Response ####
 
 tests[]:
@@ -1369,16 +1362,6 @@ _Retrieve a resource by ID._
   - Requirement: json|xml|html
 **id**
 
-
-#### Response ####
-
-bar[]:
-
-  * type: array of objects (ResourceCollection)
-
-bar[][price]:
-
-  * type: integer
 
 
 ### `DELETE` /api/resources/{id}.{_format} ###

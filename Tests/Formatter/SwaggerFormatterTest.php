@@ -267,12 +267,6 @@ class SwaggerFormatterTest extends WebTestCase
                                                                     1 => 'xml',
                                                                     2 => 'html',
                                                                 ),
-                                                            1 =>
-                                                                array (
-                                                                    'paramType' => 'form',
-                                                                    'type' => 'string',
-                                                                    'name' => 'foo',
-                                                                )
                                                         ),
                                                     1 =>
                                                         array(
@@ -320,7 +314,6 @@ class SwaggerFormatterTest extends WebTestCase
                                                             'name'      => 'g',
                                                             'type'      => 'string',
                                                         ),
-                                                    'type' => 'ResourceCollection[bar]',
                                                 ),
                                             'responseMessages' =>
                                                 array(
@@ -628,34 +621,6 @@ With multiple lines.',
                                     ),
                                     'required'    => array(),
                                 ),
-                            'ResourceCollection' => array(
-                                'id' => 'ResourceCollection',
-                                'description' => null,
-                                'properties' => array(
-                                    'price' => array(
-                                        'type' => 'integer',
-                                        'description' => 'integer',
-                                        'format' => 'int32',
-                                    ),
-                                ),
-                                'required' => array(),
-                            ),
-                            'ResourceCollection[bar]' => array(
-                                'id' => 'ResourceCollection[bar]',
-                                'description' => '',
-                                'properties' => array(
-                                    'bar' => array(
-                                        'type' => 'array',
-                                        'description' => null,
-                                        'items' => array(
-                                            '$ref' => 'ResourceCollection',
-                                        ),
-                                    ),
-                                ),
-                                'required' => array(
-                                    'bar'
-                                ),
-                            ),
                         ),
                     'produces'       =>
                         array(),
