@@ -180,7 +180,29 @@ class JmsMetadataParser implements ParserInterface, PostParserInterface
             }
         }
 
+        if ($this->shouldReadDiscriminatorClasses($meta)) {
+            foreach ($meta->discriminatorMap as $discriminatorFieldValue => $discriminatorClass) {
+                $visited[] = $discriminatorClass;
+
+                $discriminatorClassProperties = $this->doParse($discriminatorClass, $visited, $groups);
+                $params = array_merge($params, $discriminatorClassProperties);
+            }
+        }
+
         return $params;
+    }
+
+    /**
+     * @param mixed $meta
+     * @return bool
+     */
+    private function shouldReadDiscriminatorClasses($meta)
+    {
+        if (!empty($meta->discriminatorMap) && $meta->discriminatorBaseClass === $meta->name) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
